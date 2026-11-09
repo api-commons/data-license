@@ -1,0 +1,291 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://raw.githubusercontent.com/api-commons/data-license/main/data-license-json-schema.yml
+title: API Commons Data License
+description: >-
+  How the outputs and data an API returns are licensed — the SPDX license (or "custom"), whether
+  commercial use is permitted, and whether attribution is required — kept separate from the license
+  of the interface. Read verbatim from the provider's own license or terms page.
+oneOf:
+- title: Data License document
+  description: A standalone document, as written to all/<slug>/data-license/.
+  type: object
+  $ref: '#/$defs/document'
+- title: DataLicense properties
+  description: One or more apis.yml property envelopes carrying the document under `data`.
+  type: array
+  minItems: 1
+  items:
+    $ref: '#/$defs/property'
+$defs:
+  verbatim:
+    type:
+    - string
+    - 'null'
+    minLength: 1
+    description: Copied word for word from the page at `url`. The harvester checks every row against
+      the fetched page text and drops any row that does not match. Never paraphrased, never synthetic.
+  period:
+    type:
+    - string
+    - 'null'
+    description: A period copied exactly as written on the page (for example "30 days" or "12
+      months"). Never normalized or computed.
+  stance:
+    type: string
+    enum:
+    - allowed
+    - prohibited
+    - conditional
+    - unstated
+    description: Whether the page permits something. `allowed`, `prohibited` and `conditional`
+      each need a verbatim `text`. `unstated` means the page says nothing about it, which is a
+      valid result and is never guessed.
+  stanceText:
+    type: object
+    additionalProperties: false
+    required:
+    - stance
+    description: A permission and the verbatim sentence it was read from.
+    properties:
+      stance:
+        $ref: '#/$defs/stance'
+      text:
+        $ref: '#/$defs/verbatim'
+    if:
+      properties:
+        stance:
+          not:
+            const: unstated
+    then:
+      required:
+      - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+  textOnly:
+    type: object
+    additionalProperties: false
+    required:
+    - text
+    description: A clause that is recorded only as the verbatim text it was read from.
+    properties:
+      text:
+        $ref: '#/$defs/verbatim'
+  periodText:
+    type: object
+    additionalProperties: false
+    required:
+    - period
+    - text
+    description: A period and the verbatim sentence that states it.
+    properties:
+      period:
+        $ref: '#/$defs/period'
+      text:
+        $ref: '#/$defs/verbatim'
+  summaryText:
+    type: object
+    additionalProperties: false
+    required:
+    - summary
+    - text
+    description: A short label for a clause plus the verbatim clause itself.
+    properties:
+      summary:
+        type: string
+        description: A short label for the clause. The label is ours; the `text` is the provider's.
+        minLength: 1
+      text:
+        type: string
+        minLength: 1
+        description: Copied word for word from the page at `url`. The harvester checks every row
+          against the fetched page text and drops any row that does not match. Never paraphrased,
+          never synthetic.
+  derivation:
+    type: object
+    additionalProperties: true
+    required:
+    - synthetic
+    - method
+    - read
+    - tool
+    description: How this document was produced. Every business-layer document is harvested from
+      the provider's own page; none is generated.
+    properties:
+      synthetic:
+        const: false
+        description: Always false. Synthetic or template-filled documents are not published (roadmap#1086).
+      method:
+        const: harvested
+        description: 'Always `harvested`: the page was fetched by code and the model only transcribed
+          rows from it.'
+      read:
+        type: string
+        description: The date the page was read (YYYY-MM-DD).
+        format: date
+      tool:
+        type: string
+        description: The harvester that produced the document, e.g. engine/business/harvest-business.py.
+      model:
+        type: string
+        description: The model id that transcribed the rows. The model never authors text; it
+          only selects it.
+  document:
+    type: object
+    additionalProperties: false
+    required:
+    - data_license
+    - provider
+    - aid
+    - url
+    - source_date
+    - x-apis-io-derivation
+    description: A Data License document as harvested from one provider page.
+    properties:
+      data_license:
+        type: string
+        description: 'Schema version of this document. `data_license: 0.1.0` for this release.'
+        pattern: ^\d+\.\d+\.\d+$
+      provider:
+        type: string
+        description: The provider's name as it appears in its apis.yml.
+        minLength: 1
+      aid:
+        type: string
+        description: The provider's APIs.io slug (the `all/<slug>` directory and page slug).
+        pattern: ^[a-z0-9][a-z0-9-]*$
+      url:
+        type: string
+        description: The page this document was read from.
+        format: uri
+      source_date:
+        type: string
+        description: When the page was read (YYYY-MM-DD).
+        format: date
+      x-apis-io-derivation:
+        $ref: '#/$defs/derivation'
+      outputs:
+        type:
+        - object
+        - 'null'
+        additionalProperties: false
+        required:
+        - stance_commercial
+        description: The license on API outputs (responses).
+        properties:
+          license:
+            type:
+            - string
+            - 'null'
+            description: An SPDX license identifier (e.g. CC-BY-4.0, ODbL-1.0), "custom" for the
+              provider's own terms, or null when none is named.
+            pattern: ^(custom|[A-Za-z0-9][A-Za-z0-9.+-]*)$
+          stance_commercial:
+            $ref: '#/$defs/stance'
+            description: Whether commercial use is permitted.
+          text:
+            $ref: '#/$defs/verbatim'
+        if:
+          properties:
+            stance_commercial:
+              not:
+                const: unstated
+        then:
+          required:
+          - text
+          properties:
+            text:
+              type: string
+              minLength: 1
+      data:
+        type:
+        - object
+        - 'null'
+        additionalProperties: false
+        required:
+        - stance_commercial
+        description: The license on the underlying data or content.
+        properties:
+          license:
+            type:
+            - string
+            - 'null'
+            description: An SPDX license identifier (e.g. CC-BY-4.0, ODbL-1.0), "custom" for the
+              provider's own terms, or null when none is named.
+            pattern: ^(custom|[A-Za-z0-9][A-Za-z0-9.+-]*)$
+          stance_commercial:
+            $ref: '#/$defs/stance'
+            description: Whether commercial use is permitted.
+          text:
+            $ref: '#/$defs/verbatim'
+        if:
+          properties:
+            stance_commercial:
+              not:
+                const: unstated
+        then:
+          required:
+          - text
+          properties:
+            text:
+              type: string
+              minLength: 1
+      attribution:
+        type:
+        - object
+        - 'null'
+        additionalProperties: false
+        description: Whether attribution is required.
+        properties:
+          required:
+            type:
+            - boolean
+            - 'null'
+            description: True when attribution is required. `null` when the page does not say.
+          text:
+            $ref: '#/$defs/verbatim'
+      interface_license:
+        type:
+        - object
+        - 'null'
+        additionalProperties: false
+        description: A pointer to the API Commons interface license, where one exists.
+        properties:
+          url:
+            type:
+            - string
+            - 'null'
+            format: uri
+            description: The interface license.
+    patternProperties:
+      ^x-:
+        description: Extensions.
+  property:
+    type: object
+    additionalProperties: false
+    required:
+    - type
+    - url
+    - data
+    description: The DataLicense property as it appears inside an apis.yml / apis.json index.
+    properties:
+      name:
+        type: string
+        description: The name of the property as it appears in the index.
+      type:
+        const: DataLicense
+        description: The API Commons property type. Always DataLicense.
+      description:
+        type: string
+        description: What this property covers.
+      url:
+        type: string
+        description: The artifact path (or provider page) this property points at.
+        format: uri-reference
+      source_date:
+        type: string
+        description: The date the data was last verified against the provider page.
+        format: date
+      data:
+        $ref: '#/$defs/document'
